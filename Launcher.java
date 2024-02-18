@@ -63,11 +63,10 @@ public class Launcher
 
         try
         {
-            //for(int i = 0; i < cmd.size(); i++) { System.out.println(cmd.get(i) + " "); }
-
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.redirectErrorStream(true); // Redirect the output of the process
             pb.directory(new File("."));
+            System.out.println("Starting Minecraft " + version + "...");
             Process mcProc = pb.start();
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(mcProc.getInputStream()));
