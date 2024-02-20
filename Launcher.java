@@ -89,6 +89,7 @@ public class Launcher
     {
         JsonObject manifest = ManifestParser.GetJsonObjectFromFile(VERSIONS_DIR + version + File.separator + version + ".json");
         //String version = manifest.get("id").getAsString();
+        //System.out.println(manifest);
         String startingClass = manifest.get("mainClass").getAsString();
         String nativesPath = VERSIONS_DIR + version + File.separator + "natives";
         String clientJar = VERSIONS_DIR + version + File.separator + "client.jar";
@@ -143,6 +144,9 @@ public class Launcher
 //            cmd.add("--userProperties");
 //            cmd.add("\"{}\"");
 //        }
+        String cmdString = String.join(" ", cmd);
+        String separator = File.separator.equals("\\") ? "\\\\" : "/";
+        cmd = Arrays.asList(cmdString.replaceAll(separator, "/").split(" "));
 
         System.out.println(String.join(" ", cmd));
         try
