@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import com.google.gson.*;
-import javafx.util.Pair;
 
 public class ManifestParser
 {
@@ -121,6 +120,11 @@ public class ManifestParser
     public static String GetAssetIndexVersionFromVersion(JsonObject manifest)
     {
         return manifest.getAsJsonObject("assetIndex").get("id").getAsString();
+    }
+
+    public static String GetGameVersionFromVersion(JsonObject manifest)
+    {
+        return manifest.get("id").getAsString();
     }
 
     public static String GetClientJarURLFromVersion(JsonObject manifest)

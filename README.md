@@ -6,7 +6,7 @@ Download Minecraft:
 ```bash
 java -jar Downloader.jar [version] [destination path]
 ```
-eg. ```java -jar Downloader.jar 1.8.9```
+eg. ```java -jar Downloader.jar 1.8.9 .```
 
 Launch the game:
 ```

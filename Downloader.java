@@ -1,84 +1,147 @@
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
 import com.google.gson.*;
-import javafx.util.Pair;
 
 public class Downloader
 {
     public static void main(String[] args)
     {
-        final String saveManifestOption = "--save-manifests";
+        final String manifestsOnlyOption = "--manifests-only";
+        final String jarsOnlyOption = "--jars-only";
         final String libsOnlyOption = "--libs-only";
         final String assetsOnlyOption = "--assets-only";
         final String dryRunOption = "--dry-run";
-        final String helpMenu = "Usage: ManifestDownloader [options] [version/manifest] [downloadDir]\n" +
-                                "       ManifestDownloader --save-manifests [version]\n" +
-                            "Default behaviour: Download libs and assets\n" +
-                            "Options: \n  " +
-                            saveManifestOption + ": download and save the version's manifest\n  " +
-                            libsOnlyOption + ": download only the libraries\n  " +
-                            assetsOnlyOption + ": download only the assets" +
-                            dryRunOption + ": test without downloading anything";
+        final String helpMenu = "Usage: Downloader [options] [version/manifest] [destination path]\n" +
+                                "Default behaviour: Download everything (jars, libs, and assets)\n" +
+                                "Options:\n  " +
+                                manifestsOnlyOption + ": download only the manifests\n  " +
+                                jarsOnlyOption + ": download only client and server jars\n  " +
+                                libsOnlyOption + ": download only the libraries\n  " +
+                                assetsOnlyOption + ": download only the assets\n  " +
+                                dryRunOption + ": test without downloading anything";
         String path = null, downloadDir = null;
-        boolean saveManifests, libsOnly, assetsOnly, isDryRun;
-        saveManifests = libsOnly = assetsOnly = isDryRun = false;
+        boolean[] flags = new boolean[4]; // jars, libs, assets, dry run
+        Arrays.fill(flags, true); // assume we want to download everything
+        boolean manifestsOnly, libsOnly, assetsOnly, isDryRun, jarsOnly;
+        manifestsOnly = libsOnly = assetsOnly = isDryRun = jarsOnly = false;
 
         if(args.length < 2)
         {
             System.out.println(helpMenu);
             System.exit(-1);
         }
+        //if(args.length > )
 
-        if(args.length == 2 && Objects.equals(args[0], saveManifestOption))
-        {
-            DownloadManifests(args[1]);
-            System.exit(0);
-        }
+//        if(args.length == 2 && Objects.equals(args[0], manifestsOnlyOption))
+//        {
+//            DownloadManifests(args[1]);
+//            System.exit(0);
+//        }
 
         for(String arg : args)
         {
-            switch(arg)
+            if(arg.startsWith("--"))
             {
-                case saveManifestOption: saveManifests = true; break;
-                case libsOnlyOption: libsOnly = true; break;
-                case assetsOnlyOption: assetsOnly = true; break;
-                case dryRunOption: isDryRun = true;
-                default: if(path == null) { path = arg; } else if(downloadDir == null) { downloadDir = arg; } break;
+                switch(arg)
+                {
+                    case manifestsOnlyOption: Arrays.fill(flags, false); break; // assets are downloaded/loaded in all cases
+                    case jarsOnlyOption: Arrays.fill(flags, false); flags[0] = true; break;
+                    case libsOnlyOption: Arrays.fill(flags, false); flags[1] = true; break;
+                    case assetsOnlyOption: Arrays.fill(flags, false); flags[2] = true; break;
+                    case dryRunOption: flags[3] = true;
+                    default: System.out.println("Invalid flag. Exiting."); System.exit(-1);
+                }
             }
+            else
+            {
+                if(path == null)
+                {
+                    path = arg;
+                } else { downloadDir = arg; }
+            }
+//            switch(arg)
+//            {
+//                case manifestsOnlyOption: manifestsOnly = true; break;
+//                case libsOnlyOption: libsOnly = true; break;
+//                case assetsOnlyOption: assetsOnly = true; break;
+//                case dryRunOption: isDryRun = true; break;
+//                case jarsOnlyOption: jarsOnly = true; break;
+//                default: if(path == null) { path = arg; } else if(downloadDir == null) { downloadDir = arg; } break;
+//            }
         }
 
-        Download(path, downloadDir, saveManifests, libsOnly, assetsOnly);
-        //ExtractZipFile("jinput-platform-2.0.5-natives-windows.jar", "extractedJar" + File.separator);
-//        boolean isDryRun = Arrays.asList(args).contains("--dry-run");
-//        String path = args[0];
-//        String downloadDir = args[1];
-//        boolean dryRun = Integer.parseInt(args[2]) > 0;
-//        JsonObject manifest = ReadManifest(path);
+        Download(path, downloadDir, flags[0], flags[1], flags[2]);
+    }
+
+    public static void Download(String path, String downloadDir, boolean jars, boolean libs, boolean assets)
+    {
+        downloadDir += File.separator;
+        JsonObject versionManifest = null, assetsManifest = null;
+        if(path.contains(".json"))
+        {
+            versionManifest = ManifestParser.GetJsonObjectFromFile(path);
+            assetsManifest = ManifestParser.GetJsonObjectFromFile(Launcher.ASSETS_INDEXES_DIR + ManifestParser.GetAssetIndexVersionFromVersion(versionManifest) + ".json");
+        } else
+        {
+            ManifestWrapper mw = DownloadManifests(path);
+            versionManifest = mw.GetVersionManifest();
+            assetsManifest = mw.GetAssetsManifest();
+        }
+
+        if(jars)
+        {
+            String versionPath;
+            if(path.contains(".json"))
+            {
+                versionPath = ManifestParser.GetGameVersionFromVersion(versionManifest);
+            } else { versionPath = path; }
+            DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + versionPath);
+            DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + versionPath);
+        }
+        if(libs)
+        {
+            DownloadLibsFromVersion(versionManifest, downloadDir + Launcher.LIBRARIES_DIR);
+        }
+        if(assets)
+        {
+            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
+        }
+//        else
+//        {
+//            ManifestWrapper manifests = DownloadManifests(path);
+//            if(manifestsOnly) { return; } // exit only assets are requested
+//            versionManifest = manifests.GetVersionManifest();
+//            assetsManifest = manifests.GetAssetsManifest();
+//        }
 //
-//        if(manifest != null)
+//        if(libsOnly || assetsOnly || jarsOnly) // check for flags
 //        {
-//            ParseManifest(manifest, downloadDir, dryRun);
+//            if(libsOnly)
+//            {
+//                DownloadLibsFromVersion(versionManifest, downloadDir + "/libs/");
+//            }
+//            else if(assetsOnly)
+//            {
+//                DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + "/assets/");
+//            }
+//            else if(jarsOnly)
+//            {
+//                DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
+//                DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
+//            }
 //        }
-//        for(String l : ManifestParser.GetLibsFromVersion(ManifestParser.GetManifestFromVersion("1.5.2"), "linux"))
+//        else
 //        {
-//            System.out.println(l);
+//            DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
+//            DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
+//            DownloadLibsFromVersion(versionManifest, downloadDir + Launcher.LIBRARIES_DIR);
+//            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
 //        }
-        //System.out.println(GetOSName());
-        //ParseManifest(ManifestParser.GetManifestFromVersion("1.5.2"), "aa", true);
-        //DownloadURLs(ManifestParser.GetLibsFromVersion(ManifestParser.GetManifestFromVersion("b1.7.3"), "windows"), "dl");
-        //DownloadLibsFromVersion("b1.7.3", "dl");
-        //System.out.println(ManifestParser.GetClientURLFromVersion(ManifestParser.GetManifestFromVersion("1.5.2")));
-        //System.out.println(ManifestParser.GetAssetIndexFromVersion(ManifestParser.GetManifestFromVersion("1.9.4")));
-//        for(Pair<String, String> asset : ManifestParser.GetAssetsFromAssetIndex(ManifestParser.GetAssetIndexFromVersion(ManifestParser.GetManifestFromVersion("1.9.4"))))
-//        {
-//            System.out.println("Name: " + asset.getKey() + " Hash: " + asset.getValue());
-//        }
-        //DownloadResourcesFromAssetIndex("1.8.9", "assets/objects");
     }
 
     public static ManifestWrapper DownloadManifests(String version)
@@ -86,7 +149,7 @@ public class Downloader
         JsonObject manifest = ManifestParser.GetManifestFromVersion(version);
         JsonObject assets = ManifestParser.GetAssetIndexFromVersion(manifest);
         String manifestPath = Launcher.VERSIONS_DIR + version + File.separator + version + ".json";
-        String assetsIndexPath = Launcher.ASSETS_DIR + "indexes" + File.separator + ManifestParser.GetAssetIndexVersionFromVersion(manifest) + ".json";
+        String assetsIndexPath = Launcher.ASSETS_INDEXES_DIR + ManifestParser.GetAssetIndexVersionFromVersion(manifest) + ".json";
 
         ManifestParser.SaveJsonObject(manifest, manifestPath);
         System.out.println("Saved version manifest to " + manifestPath);
@@ -94,39 +157,6 @@ public class Downloader
         System.out.println("Saved assets index to " + assetsIndexPath);
 
         return new ManifestWrapper(manifest, assets);
-    }
-
-    public static void Download(String path, String downloadDir, boolean saveManifests, boolean libsOnly, boolean assetsOnly)
-    {
-        downloadDir += File.separator;
-        JsonObject versionManifest = null, assetsManifest = null;
-        if(path.contains(".json"))
-        {
-            versionManifest = ManifestParser.GetJsonObjectFromFile(path);
-            assetsManifest = ManifestParser.GetAssetIndexFromVersion(versionManifest);
-        }
-        else
-        {
-            ManifestWrapper manifests = DownloadManifests(path);
-            versionManifest = manifests.GetVersionManifest();
-            assetsManifest = manifests.GetAssetsManifest();
-        }
-
-        DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-        DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-
-        if(libsOnly || assetsOnly)
-        {
-            if(libsOnly)
-            {
-                DownloadLibsFromVersion(versionManifest, downloadDir + "/libs/");
-            } else { DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + "/assets/"); }
-        }
-        else
-        {
-            DownloadLibsFromVersion(versionManifest, downloadDir + Launcher.LIBRARIES_DIR);
-            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
-        }
     }
 
     public static String GetOSName()
@@ -239,13 +269,19 @@ public class Downloader
     public static void DownloadAssetsFromAssetIndex(JsonObject manifest, String destinationPath)
     {
         Pair<String, String>[] assets = ManifestParser.GetAssetsFromAssetIndex(manifest);
+        boolean mapToResources = false;
+        try
+        {
+            mapToResources = manifest.get("map_to_resources").getAsBoolean();
+        } catch (NullPointerException e) { }
         System.out.println("Need to get " + assets.length + " assets");
 
         for(int i = 0; i < assets.length; i++)
         {
             Pair<String, String> asset = assets[i];
             String url = "https://resources.download.minecraft.net/" + asset.getValue().substring(0, 2) + "/" + asset.getValue();
-            String dest = destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+            String dest = mapToResources ? Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR + asset.getKey() : destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+            //String dest = destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
             System.out.println("Downloading (" + (i+1) + "/" + assets.length + ")" + ": " + url);
             int response;
             if((response = DownloadURL(url, dest)) == 200)
