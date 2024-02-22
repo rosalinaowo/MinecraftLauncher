@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class Launcher 
 {
@@ -19,75 +20,47 @@ public class Launcher
                                                                                                                                     // require their assets to be under appdata/.minecraft
     public static void main(String[] args)
     {
+        final String memoryOption = "--memory";
+        final String dryRunOption = "--dry-run";
+        final String helpMenu = "Usage: Launcher [options] [version] [username]\n" +
+                                "Options:\n  " +
+                                memoryOption + " [number of MBs]: set the game max memory\n  " +
+                                dryRunOption + ": output only the launch command";
+        int memoryAmount = 2048;
+        boolean isDrRun = false;
+        String version = null, username = null;
         if(args.length < 2)
         {
-            System.out.println("Usage: Launcher <version> <username>");
-            System.exit(-1);
+            System.out.println(helpMenu);
+            System.exit(0);
         }
 
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        LaunchCustom(args[0], args[1]);
+        for(int i = 0; i < args.length; i++)
+        {
+            String arg = args[i];
+            if(arg.startsWith("--"))
+            {
+                switch(arg)
+                {
+                    case "--help": System.out.println(helpMenu); System.exit(0);
+                    case memoryOption: memoryAmount = Integer.parseInt(args[1]); i++; break;
+                    case dryRunOption: isDrRun = true; break;
+                    default: System.out.println("Invalid flag. Exiting."); System.exit(-1);
+                }
+            }
+            else
+            {
+                if(version == null)
+                {
+                    version = arg;
+                } else { username = arg; }
+            }
+        }
+
+        Launch(version, username, memoryAmount, isDrRun);
     }
 
-    public static void Launch(String version, String username)
-    {
-        final String StartingClass = "net.minecraft.client.Minecraft";
-        final String StartingClassPost16 = "net.minecraft.client.main.Main";
-        int versionNumber = 0;
-        boolean post16;
-        try
-        {
-            versionNumber = Integer.parseInt(String.format("%-3s", version.replace(".", "")).replace(' ', '0')); // 1.6.4 -> 164, 1.7 -> 170
-            post16 = version.split("\\.")[1].length() >= 2 || versionNumber >= 160;
-        } catch (NumberFormatException e) { post16 = false; }
-
-
-        List<String> cmd = new ArrayList<>();
-        cmd.add("java");
-        cmd.add("\"-Djava.library.path=versions/" + version + "/natives\"");
-        cmd.add("-cp");
-        cmd.add("\"versions/" + version + "/client.jar;" + LIBRARIES_DIR.replaceAll("\\\\", "") + "/" + (post16 ? version : "pre1.6") + "/*\"");
-        cmd.add(post16 ? StartingClassPost16 : StartingClass);
-        if(post16) // If we are post 1.6 we need to specify --version and --username
-        {
-            cmd.add("--version");
-            cmd.add(version);
-            cmd.add("--username");
-        }
-        cmd.add(username);
-        cmd.add("--gameDir");
-        cmd.add("\"versions/" + version + "/.minecraft\"");
-        if(post16) // as well as --asset{sDir, Index}, --accessToken and --userProperties (which we can leave blank)
-        {
-            cmd.add("--assetsDir");
-            cmd.add("assets/" + (versionNumber >= 170 ? "" : "virtual/legacy"));
-            cmd.add("--assetIndex");
-            if(versionNumber >= 180 && versionNumber <= 189) { cmd.add("1.8"); } else { cmd.add(version); }
-            //cmd.add(version);
-            cmd.add("--accessToken");
-            cmd.add("1234");
-            cmd.add("--userProperties");
-            cmd.add("\"{}\"");
-        }
-
-        try
-        {
-            ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectErrorStream(true); // Redirect the output of the process
-            pb.directory(new File("."));
-            System.out.println("Starting Minecraft " + version + "...");
-            Process mcProc = pb.start();
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(mcProc.getInputStream()));
-            String line;
-            while((line = reader.readLine()) != null) { System.out.println(line); } // and print it
-            int exitCode = mcProc.waitFor();
-
-            System.out.println("Minecraft exited with code: " + exitCode);
-        } catch (IOException | InterruptedException e) { e.printStackTrace(); }
-    }
-
-    public static void LaunchCustom(String version, String username)
+    public static void Launch(String version, String username, int memoryAmountMB, boolean isDryRun)
     {
         JsonObject manifest = ManifestParser.GetJsonObjectFromFile(VERSIONS_DIR + version + File.separator + version + ".json");
         String nativesPath = VERSIONS_DIR + version + File.separator + "natives";
@@ -106,19 +79,22 @@ public class Launcher
 
         List<String> cmd = new ArrayList<>();
         cmd.add("java");
-        if(pre16)
+        if(Objects.equals(System.getProperty("os.name"), "Windows 11"))
         {
             cmd.add("\"-Dos.name=Windows 10\"");
             cmd.add("-Dos.version=10.0");
         }
         cmd.add("\"-Djava.library.path=" + nativesPath + "\"");
+        cmd.add("\"-Dminecraft.client.jar=" + clientJar + "\"");
         cmd.add("-cp");
         cmd.add("\"" + clientJar + ";" + libsPaths + "\"");
+        cmd.add("-Xmx" + memoryAmountMB + "M");
+        // Garbage collector flags, provides better performance
+        cmd.add("-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M");
         cmd.add(startingClass);
         if(!pre16)
         {
-            cmd.add("--version");
-            cmd.add(version);
+            cmd.add("--version " + version);
             cmd.add("--username");
         }
         cmd.add(username);
@@ -126,7 +102,7 @@ public class Launcher
         if(pre16)
         {
             cmd.add("\"" + DEFAULT_MC_PATH + "\""); // we need to use the default .minecraft path for older versions
-        } else { cmd.add("\"" + System.getProperty("user.dir") + File.separator + ".minecraft\""); }
+        } else { cmd.add("\"" + System.getProperty("user.dir") + "\""); }
         cmd.add("--assetsDir");
         if(pre16)
         {
@@ -134,25 +110,15 @@ public class Launcher
         } else
         {
             cmd.add("\"" + ASSETS_DIR + "\"");
-            cmd.add("--assetIndex");
-            cmd.add(assetIndex);
-        }
-//        cmd.add("--assetIndex");
-//        cmd.add(assetIndex);
-        if(!pre16)
-        {
-//            cmd.add("--assetIndex");
-//            cmd.add(assetIndex);
-            cmd.add("--accessToken");
-            cmd.add("1234");
-            cmd.add("--userProperties");
-            cmd.add("\"{}\"");
+            cmd.add("--assetIndex " + assetIndex);
+            cmd.add("--accessToken 1234");
+            cmd.add("--userProperties \"{}\"");
         }
         String cmdString = String.join(" ", cmd);
-        String separator = File.separator.equals("\\") ? "\\\\" : "/";
-        cmd = Arrays.asList(cmdString.replaceAll(separator, "/").split(" "));
+        cmd = Arrays.asList(cmdString.replaceAll(Downloader.separator, "/").split(" "));
 
         System.out.println(String.join(" ", cmd));
+        if(isDryRun) { System.exit(0); }
         try
         {
             ProcessBuilder pb = new ProcessBuilder(cmd);

@@ -1,75 +1,116 @@
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.*;
-import java.util.List;
+import java.io.*;
+import java.time.LocalDateTime;
 
 public class LauncherGUI extends JFrame
 {
-    JPanel panel = new JPanel();
-    JTextArea log = new JTextArea();
-    JTextArea txtUsername = new JTextArea("pino");
-    JComboBox cmbVersions;
-    JButton btnLaunch = new JButton("Launch Minecraft");
+    private StringWriter sw;
+    private PrintWriter pw; // We use these to redirect the stack trace
+    private JPanel panel = new JPanel();
+    JTextArea log;
+    private JTextArea txtUsername;
+    private JComboBox cmbVersions;
+    private JButton btnLaunch;
+    private JButton btnOptions;
+    private OptionsWindow optionsWindow;
+    int memoryAmount = 1024;
+    public static void main(String[] args)
+    {
+        SwingUtilities.invokeLater(LauncherGUI::new);
+    }
     public LauncherGUI()
     {
+        sw = new StringWriter();
+        pw = new PrintWriter(sw);
+
         setTitle("Minecraft Launcher");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(854, 480);
+        setIconImage(new ImageIcon(getClass().getResource("/resources/SeaLantern.png")).getImage());
 
         // Initialize the layout
         panel.setLayout(new GridBagLayout());
         GridBagConstraints constraints = new GridBagConstraints();
 
-        // +------------------------+
-        // |                        |
-        // |          log           |
-        // |                        |
-        // |Vers     Play   Username|
-        // +------------------------+
+        // +----------------------------------------+
+        // |                                        |
+        // |                                        |
+        // |                 log                    |
+        // |                                        |
+        // |                                        |
+        // |[Vers] [Options]    (Play)    [Username]|
+        // +----------------------------------------+
 
-        // log
+        constraints.insets = new Insets(3, 3, 3, 3);
+
+        // Log
         constraints.gridx = constraints.gridy = 0;
-        constraints.gridwidth = 3;
+        constraints.gridwidth = 4;
         constraints.fill = GridBagConstraints.BOTH;
         constraints.weightx = 1.0;
         constraints.weighty = 0.97;
+        log = new JTextArea();
         log.setEditable(false);
+        log.setLineWrap(true);
         JScrollPane scroller = new JScrollPane(log);
         panel.add(scroller, constraints);
 
-        constraints.fill = 0;
-        // version selection
+        constraints.fill = GridBagConstraints.NONE;
+        constraints.weighty = 0.03;
+        // Version selection
         constraints.anchor = GridBagConstraints.WEST;
         constraints.gridy = 1;
         constraints.gridwidth = 1;
-        constraints.weighty = 0.03;
+        constraints.weightx = 0.01;
         cmbVersions = new JComboBox(GetVersionList());
         panel.add(cmbVersions, constraints);
 
-        // play button
-        constraints.anchor = GridBagConstraints.CENTER;
+        // Options button
         constraints.gridx = 1;
-        btnLaunch.addActionListener(e -> LaunchMinecraft((String) cmbVersions.getSelectedItem(), txtUsername.getText()));
+        btnOptions = new JButton("Options");
+        btnOptions.addActionListener(e -> optionsWindow = new OptionsWindow(this));
+        panel.add(btnOptions, constraints);
+
+        // Play button
+        constraints.weightx = 1.0;
+        constraints.anchor = GridBagConstraints.CENTER;
+        btnLaunch = new JButton("Launch Minecraft");
+        btnLaunch.addActionListener(e -> LaunchMinecraft((String)cmbVersions.getSelectedItem(), txtUsername.getText()));
         panel.add(btnLaunch, constraints);
 
-        // username input
-        //constraints.fill = GridBagConstraints.HORIZONTAL;
+        // Username input
         constraints.anchor = GridBagConstraints.EAST;
-        constraints.gridx = 2;
-        //constraints.weightx = 0.0;
+        constraints.gridx = 3;
+        constraints.weightx = 0.01;
+        txtUsername = new JTextArea("pino");
         panel.add(txtUsername, constraints);
 
         add(panel);
         setVisible(true);
     }
 
+    public void DownloadVersion(String version, String path)
+    {
+        optionsWindow.btnDownload.setEnabled(false);
+        btnLaunch.setEnabled(false);
+        Thread downloaderThread = new Thread(() -> {
+            PrintStream stream = new PrintStream(new ConsoleOutputToJTextArea(log));
+            System.setOut(stream);
+            System.setErr(stream);
+
+            Downloader.Download((String)optionsWindow.cmbVersions.getSelectedItem(), ".", true, true, true);
+            optionsWindow.btnDownload.setEnabled(true);
+            btnLaunch.setEnabled(true);
+            UpdateVersionList();
+        });
+
+        downloaderThread.start();
+    }
+
     private void LaunchMinecraft(String version, String username)
     {
         btnLaunch.setEnabled(false);
-
         Thread mcThread = new Thread(() -> {
             try
             {
@@ -77,59 +118,64 @@ public class LauncherGUI extends JFrame
                 System.setOut(stream);
                 System.setErr(stream);
 
-                Launcher.Launch(version, username);
+                Launcher.Launch(version, username, memoryAmount, false);
             } catch (Exception e)
             {
-                e.printStackTrace();
+                e.printStackTrace(pw);
+                ShowError(sw.toString());
             } finally { SwingUtilities.invokeLater(() -> btnLaunch.setEnabled(true)); }
         });
 
         mcThread.start();
     }
 
-    public static void main(String[] args)
+    public void SetMemory(String amount)
     {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() { new LauncherGUI(); }
-        });
+        try
+        {
+            memoryAmount = Integer.parseInt(amount);
+        } catch (NumberFormatException ignored) { }
     }
 
-    private void UpdateComboBox(String[] strings, JComboBox menu)
+    public void SaveLog()
     {
-        DefaultComboBoxModel<String> versions = (DefaultComboBoxModel<String>) menu.getModel();
-        for(String s : strings) { versions.addElement(s); }
+        String fileName = LocalDateTime.now().toString().split("\\.")[0].replaceAll(":", ".") + ".log";
+        try
+        {
+            new File(fileName).createNewFile();
+            FileWriter fw = new FileWriter(fileName);
+            fw.write(log.getText());
+            fw.close();
+            log.append("Saved log to: " + fileName);
+        } catch (IOException e) { e.printStackTrace(pw); ShowError(sw.toString()); }
+    }
+
+    private void UpdateVersionList()
+    {
+        cmbVersions.setModel(new DefaultComboBoxModel(GetVersionList()));
     }
 
     private String[] GetVersionList()
     {
-        List<String> versions = new ArrayList<>();
-        File versionsDir = new File("versions" + File.separator);
-        try
+        String[] versions = new String[] { "No versions found" };
+        File versionsDir = new File(Launcher.VERSIONS_DIR);
+        if(versionsDir.exists())
         {
-            for(String fileName : versionsDir.list())
-            {
-                File ver = new File( versionsDir.getPath() + File.separator + fileName + File.separator);
-                if(ver.exists())
-                {
-                    versions.add(fileName);
-                }
-            }
-        } catch (NullPointerException e) { }
-        String[] ret = versions.toArray(new String[0]);
-//        Arrays.sort(ret);
-        return ret;
+            versions = versionsDir.list();
+        }
+        return versions;
+    }
+
+    public static void ShowError(String errorMessage)
+    {
+        JOptionPane.showMessageDialog(null, errorMessage, "An error occurred!", JOptionPane.ERROR_MESSAGE);
     }
 }
 
 class ConsoleOutputToJTextArea extends OutputStream
 {
     private JTextArea txt;
-    public  ConsoleOutputToJTextArea(JTextArea textArea)
-    {
-        txt = textArea;
-    }
-
+    public ConsoleOutputToJTextArea(JTextArea textArea) { txt = textArea; }
     @Override
     public void write(int b)
     {

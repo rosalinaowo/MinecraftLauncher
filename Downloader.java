@@ -1,14 +1,16 @@
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Objects;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import com.google.gson.*;
 
 public class Downloader
 {
+    static String separator = File.separator.equals("\\") ? "\\\\" : "/";
     public static void main(String[] args)
     {
         final String manifestsOnlyOption = "--manifests-only";
@@ -27,21 +29,12 @@ public class Downloader
         String path = null, downloadDir = null;
         boolean[] flags = new boolean[4]; // jars, libs, assets, dry run
         Arrays.fill(flags, true); // assume we want to download everything
-        boolean manifestsOnly, libsOnly, assetsOnly, isDryRun, jarsOnly;
-        manifestsOnly = libsOnly = assetsOnly = isDryRun = jarsOnly = false;
 
         if(args.length < 2)
         {
             System.out.println(helpMenu);
-            System.exit(-1);
+            System.exit(0);
         }
-        //if(args.length > )
-
-//        if(args.length == 2 && Objects.equals(args[0], manifestsOnlyOption))
-//        {
-//            DownloadManifests(args[1]);
-//            System.exit(0);
-//        }
 
         for(String arg : args)
         {
@@ -49,6 +42,7 @@ public class Downloader
             {
                 switch(arg)
                 {
+                    case "--help": System.out.println(helpMenu); System.exit(0);
                     case manifestsOnlyOption: Arrays.fill(flags, false); break; // assets are downloaded/loaded in all cases
                     case jarsOnlyOption: Arrays.fill(flags, false); flags[0] = true; break;
                     case libsOnlyOption: Arrays.fill(flags, false); flags[1] = true; break;
@@ -64,15 +58,6 @@ public class Downloader
                     path = arg;
                 } else { downloadDir = arg; }
             }
-//            switch(arg)
-//            {
-//                case manifestsOnlyOption: manifestsOnly = true; break;
-//                case libsOnlyOption: libsOnly = true; break;
-//                case assetsOnlyOption: assetsOnly = true; break;
-//                case dryRunOption: isDryRun = true; break;
-//                case jarsOnlyOption: jarsOnly = true; break;
-//                default: if(path == null) { path = arg; } else if(downloadDir == null) { downloadDir = arg; } break;
-//            }
         }
 
         Download(path, downloadDir, flags[0], flags[1], flags[2]);
@@ -111,37 +96,6 @@ public class Downloader
         {
             DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
         }
-//        else
-//        {
-//            ManifestWrapper manifests = DownloadManifests(path);
-//            if(manifestsOnly) { return; } // exit only assets are requested
-//            versionManifest = manifests.GetVersionManifest();
-//            assetsManifest = manifests.GetAssetsManifest();
-//        }
-//
-//        if(libsOnly || assetsOnly || jarsOnly) // check for flags
-//        {
-//            if(libsOnly)
-//            {
-//                DownloadLibsFromVersion(versionManifest, downloadDir + "/libs/");
-//            }
-//            else if(assetsOnly)
-//            {
-//                DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + "/assets/");
-//            }
-//            else if(jarsOnly)
-//            {
-//                DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-//                DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-//            }
-//        }
-//        else
-//        {
-//            DownloadClientJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-//            DownloadServerJar(versionManifest, downloadDir + Launcher.VERSIONS_DIR + path);
-//            DownloadLibsFromVersion(versionManifest, downloadDir + Launcher.LIBRARIES_DIR);
-//            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
-//        }
     }
 
     public static ManifestWrapper DownloadManifests(String version)
@@ -210,7 +164,6 @@ public class Downloader
      */
     private static void DownloadURLs(String[] urls, String destinationPath)
     {
-        String separator = File.separator.equals("\\") ? "\\\\" : "/";
         for(String url : urls)
         {
             String destDirty = destinationPath + File.separator + url.split("/")[url.split("/").length - 1]; // .../fileName
@@ -226,10 +179,8 @@ public class Downloader
 
     public static void DownloadLibsFromVersion(JsonObject manifest, String destinationPath)
     {
-        //DownloadURLs(ManifestParser.GetLibsFromVersion(manifest, GetOSName()), destinationPath);
-        Pair<String, String>[] libraries = ManifestParser.GetLibsFromVersion(manifest, GetOSName());
+        Pair<String, String>[] libraries = CompareLibraries(ManifestParser.GetLibsFromVersion(manifest, GetOSName()), destinationPath);
         System.out.println("Need to get " + libraries.length + " libraries");
-        String separator = File.separator.equals("\\") ? "\\\\" : "/";
 
         for(int i = 0; i < libraries.length; i++)
         {
@@ -251,6 +202,20 @@ public class Downloader
         }
     }
 
+    public static Pair<String, String>[] CompareLibraries(Pair<String, String>[] libraries, String destinationPath)
+    {
+        List<Pair<String, String>> missingLibs = new ArrayList<>();
+        System.out.println("Comparing libs...");
+        for(Pair<String, String> lib : libraries)
+        {
+            String fileName = lib.getValue().split("/")[lib.getValue().split("/").length - 1];
+            String dest = destinationPath + lib.getKey().replaceAll("/", separator) + fileName;
+            if(!new File(dest).exists()) { missingLibs.add(lib); }
+        }
+
+        return missingLibs.toArray(new Pair[0]);
+    }
+
     public static void DownloadClientJar(JsonObject manifest, String destinationPath)
     {
         String url = ManifestParser.GetClientJarURLFromVersion(manifest);
@@ -266,14 +231,14 @@ public class Downloader
         } else { System.out.println("No server jar found."); }
     }
 
-    public static void DownloadAssetsFromAssetIndex(JsonObject manifest, String destinationPath)
+    public static void DownloadAssetsFromAssetIndex(JsonObject assetManifest, String destinationPath)
     {
-        Pair<String, String>[] assets = ManifestParser.GetAssetsFromAssetIndex(manifest);
         boolean mapToResources = false;
         try
         {
-            mapToResources = manifest.get("map_to_resources").getAsBoolean();
+            mapToResources = assetManifest.get("map_to_resources").getAsBoolean();
         } catch (NullPointerException e) { }
+        Pair<String, String>[] assets = CompareAssets(ManifestParser.GetAssetsFromAssetIndex(assetManifest), destinationPath, mapToResources);
         System.out.println("Need to get " + assets.length + " assets");
 
         for(int i = 0; i < assets.length; i++)
@@ -281,7 +246,6 @@ public class Downloader
             Pair<String, String> asset = assets[i];
             String url = "https://resources.download.minecraft.net/" + asset.getValue().substring(0, 2) + "/" + asset.getValue();
             String dest = mapToResources ? Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR + asset.getKey() : destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
-            //String dest = destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
             System.out.println("Downloading (" + (i+1) + "/" + assets.length + ")" + ": " + url);
             int response;
             if((response = DownloadURL(url, dest)) == 200)
@@ -289,6 +253,19 @@ public class Downloader
                 System.out.println("Saved to: " + dest);
             } else { System.out.println("HTTP status code " + response); }
         }
+    }
+
+    public static Pair<String, String>[] CompareAssets(Pair<String, String>[] assets, String destinationPath, boolean mapToResources)
+    {
+        List<Pair<String, String>> missingAssets = new ArrayList<>();
+        System.out.println("Comparing assets...");
+        for(Pair<String, String> asset : assets)
+        {
+            String dest = mapToResources ? Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR + asset.getKey() : destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+            if(!new File(dest).exists()) { missingAssets.add(asset); }
+        }
+
+        return missingAssets.toArray(new Pair[0]);
     }
 
     public static void ExtractZipFile(String archivePath, String destinationPath)

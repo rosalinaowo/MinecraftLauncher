@@ -73,9 +73,21 @@ public class ManifestParser
      *
      * @return  The main version manifest
      */
-    public static JsonObject GetVersionManifest()
+    public static JsonObject GetVersionManifest() { return GetJsonObjectFromURL(VERSION_MANIFEST_URL); }
+
+    /**
+     *
+     * @return  URLs of downloadable
+     */
+    public static String[] GetDownloadableVersions()
     {
-        return GetJsonObjectFromURL(VERSION_MANIFEST_URL);
+        List<String> versions = new ArrayList<>();
+        for(JsonElement vers : GetVersionManifest().getAsJsonArray("versions"))
+        {
+            versions.add(vers.getAsJsonObject().get("id").getAsString());
+        }
+
+        return versions.toArray(new String[0]);
     }
 
     /**
@@ -114,7 +126,7 @@ public class ManifestParser
 
     /**
      *
-     * @param manifest  The asset index manifest
+     * @param manifest  The version manifest
      * @return          The assets version
      */
     public static String GetAssetIndexVersionFromVersion(JsonObject manifest)
