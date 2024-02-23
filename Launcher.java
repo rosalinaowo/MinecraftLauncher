@@ -18,6 +18,7 @@ public class Launcher
     public static final String LIBRARIES_DIR = "libraries" + File.separator;
     public static final String DEFAULT_MC_PATH = System.getenv("APPDATA") + File.separator + ".minecraft" + File.separator;   // This is necessary for older versions, since they
                                                                                                                                     // require their assets to be under appdata/.minecraft
+    public static final String RUNTIME_PATH = "runtime" + File.separator;
     public static void main(String[] args)
     {
         final String memoryOption = "--memory";
@@ -78,7 +79,8 @@ public class Launcher
         }
 
         List<String> cmd = new ArrayList<>();
-        cmd.add("java");
+        //cmd.add("java");
+        cmd.add(ManifestParser.GetRuntimePathFromVersion(manifest).getAbsolutePath());
         if(Objects.equals(System.getProperty("os.name"), "Windows 11"))
         {
             cmd.add("\"-Dos.name=Windows 10\"");

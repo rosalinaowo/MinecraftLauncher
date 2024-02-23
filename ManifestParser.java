@@ -126,6 +126,22 @@ public class ManifestParser
 
     /**
      *
+     * @param manifest  The version's manifest
+     * @return          Runtime path and version
+     */
+    public static Pair<String, Integer> GetJavaRuntimeFromVersion(JsonObject manifest)
+    {
+        JsonObject j = manifest.getAsJsonObject("javaVersion");
+        return new Pair<>(j.get("component").getAsString(), j.get("majorVersion").getAsInt());
+    }
+
+    public static File GetRuntimePathFromVersion(JsonObject manifest)
+    {
+        return new File(Launcher.RUNTIME_PATH + GetJavaRuntimeFromVersion(manifest).getKey() + File.separator + "bin" + File.separator + "java.exe");
+    }
+
+    /**
+     *
      * @param manifest  The version manifest
      * @return          The assets version
      */

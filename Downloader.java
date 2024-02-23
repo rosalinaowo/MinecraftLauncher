@@ -78,6 +78,7 @@ public class Downloader
             assetsManifest = mw.GetAssetsManifest();
         }
 
+        if(jars && libs && assets) { DownloadJava(versionManifest); }
         if(jars)
         {
             String versionPath;
@@ -210,7 +211,7 @@ public class Downloader
         {
             String fileName = lib.getValue().split("/")[lib.getValue().split("/").length - 1];
             String dest = destinationPath + lib.getKey().replaceAll("/", separator) + fileName;
-            if(!new File(dest).exists()) { missingLibs.add(lib); }
+            if(!new File(dest).exists() || dest.contains("-natives-")) { missingLibs.add(lib); }
         }
 
         return missingLibs.toArray(new Pair[0]);
@@ -268,8 +269,9 @@ public class Downloader
         return missingAssets.toArray(new Pair[0]);
     }
 
-    public static void ExtractZipFile(String archivePath, String destinationPath)
+    public static String[] ExtractZipFile(String archivePath, String destinationPath)
     {
+        List<String> extractedFiles = new ArrayList<>();
         System.out.println("Extracting " + archivePath);
         File dest = new File(destinationPath);
         if(!dest.exists()) { dest.mkdirs(); }
@@ -281,6 +283,7 @@ public class Downloader
             {
                 if(entry.isDirectory()) // If the entry is a directory, create it
                 {
+                    extractedFiles.add(entry.getName());
                     new File(destinationPath, entry.getName()).mkdirs();
                     continue;
                 }
@@ -299,5 +302,51 @@ public class Downloader
             zipInputStream.close();
             System.out.println("Extracted " + archivePath + " to " + destinationPath);
         } catch (IOException e) { e.printStackTrace(); }
+        return extractedFiles.toArray(new String[0]);
+    }
+
+    public static void DownloadJava(JsonObject manifest)
+    {
+        // API used: https://do-api.adoptopenjdk.net/q/swagger-ui/#/Binary/getBinary
+        String arch = System.getProperty("os.arch"), os = System.getProperty("os.name").toLowerCase();
+        switch(arch)
+        {
+            case "x86": case "i386": arch = "x86"; break;
+            case "x86_64": case "amd64": arch = "x64"; break;
+        }
+        if(os.contains("windows"))
+        {
+            os = "windows";
+        } else if(os.contains("linux"))
+        {
+            os = "linux";
+        } else if(os.contains("mac")) { os = "mac"; }
+
+        int version = 8;
+        String path = "jre-legacy";
+        try
+        {
+            Pair<String, Integer> runtimeData = ManifestParser.GetJavaRuntimeFromVersion(manifest);
+            path = runtimeData.getKey();
+            version = runtimeData.getValue();
+        } catch (Exception e) { e.printStackTrace(); return; }
+        File runtime = new File(Launcher.RUNTIME_PATH);
+        runtime.mkdirs();
+        if(ManifestParser.GetRuntimePathFromVersion(manifest).exists())
+        {
+            System.out.println("Java " + version + " already installed");
+            return;
+        }
+        String dest = Launcher.RUNTIME_PATH + "jre" + version + os + arch + ".zip";
+        String url = "https://api.adoptopenjdk.net/v3/binary/latest/" + version + "/ga/" + os + "/" + arch + "/jre/hotspot/normal/adoptopenjdk";
+        System.out.println("Trying to get JRE " + version + " for " + os + " " + arch);
+        int response;
+        if((response = DownloadURL(url, dest)) == 200)
+        {
+            System.out.println("Downloaded " + dest);
+            File extractedDir = new File(Launcher.RUNTIME_PATH + ExtractZipFile(dest, Launcher.RUNTIME_PATH)[0]);
+            extractedDir.renameTo(new File(Launcher.RUNTIME_PATH + path));
+            new File(dest).delete();
+        } else { System.out.println("HTTP status code " + response); }
     }
 }

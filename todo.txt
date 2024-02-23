@@ -1,0 +1,1 @@
+- Asset manifest legacy.json (for mc 1.6)
