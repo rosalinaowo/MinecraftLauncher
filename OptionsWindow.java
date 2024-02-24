@@ -12,12 +12,13 @@ public class OptionsWindow extends JFrame
     JComboBox cmbVersions;
     JButton btnDownload;
     JButton btnSaveLog;
+    JTextArea txtJava;
     public OptionsWindow(LauncherGUI mainWindow)
     {
         this.mainWindow = mainWindow;
         setTitle("Options");
-        setSize(375, 100);
-        setResizable(false);
+        setSize(375, 130);
+        //setResizable(false);
         setIconImage(new ImageIcon(getClass().getResource("/resources/cog.png")).getImage());
 
         panel.setLayout(new GridBagLayout());
@@ -36,6 +37,7 @@ public class OptionsWindow extends JFrame
         constraints.fill = GridBagConstraints.WEST;
         panel.add(new Label("Memory (mb):"), constraints);
         // Memory input
+        constraints.fill = GridBagConstraints.HORIZONTAL;
         constraints.gridx = 1;
         txtMemory = new JTextArea(Integer.toString(mainWindow.memoryAmount));
         txtMemory.getDocument().addDocumentListener(new DocumentListener() {
@@ -47,6 +49,13 @@ public class OptionsWindow extends JFrame
             public void changedUpdate(DocumentEvent e) { }
         });
         panel.add(txtMemory, constraints);
+
+        // Save log button
+        constraints.fill = GridBagConstraints.WEST;
+        constraints.gridx = 2;
+        btnSaveLog = new JButton("Save log");
+        btnSaveLog.addActionListener(e -> mainWindow.SaveLog());
+        panel.add(btnSaveLog, constraints);
 
         // Downloader
         constraints.gridy = 1;
@@ -63,12 +72,24 @@ public class OptionsWindow extends JFrame
         btnDownload.addActionListener(e -> mainWindow.DownloadVersion((String)cmbVersions.getSelectedItem(), "."));
         constraints.gridx = 2;
         panel.add(btnDownload, constraints);
-        // Save log button
-        constraints.gridy = 2;
+
+        // Custom Java
         constraints.gridx = 0;
-        btnSaveLog = new JButton("Save log");
-        btnSaveLog.addActionListener(e -> mainWindow.SaveLog());
-        panel.add(btnSaveLog);
+        constraints.gridy = 2;
+        panel.add(new Label("Custom java.exe:"), constraints);
+        constraints.gridx = 1;
+        // Custom java.exe
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        txtJava = new JTextArea(mainWindow.customJavaExePath);
+        txtJava.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) { mainWindow.SetJavaExePath(txtJava.getText()); }
+            @Override
+            public void removeUpdate(DocumentEvent e) { mainWindow.SetJavaExePath(txtJava.getText()); }
+            @Override
+            public void changedUpdate(DocumentEvent e) { }
+        });
+        panel.add(txtJava, constraints);
 
         add(panel);
         setVisible(true);

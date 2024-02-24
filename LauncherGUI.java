@@ -1,3 +1,5 @@
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
@@ -14,11 +16,10 @@ public class LauncherGUI extends JFrame
     private JButton btnLaunch;
     private JButton btnOptions;
     private OptionsWindow optionsWindow;
+    static String settingsFilePath = "launcher.config.json";
     int memoryAmount = 1024;
-    public static void main(String[] args)
-    {
-        SwingUtilities.invokeLater(LauncherGUI::new);
-    }
+    String customJavaExePath = "";
+    public static void main(String[] args) { SwingUtilities.invokeLater(LauncherGUI::new); }
     public LauncherGUI()
     {
         sw = new StringWriter();
@@ -88,6 +89,8 @@ public class LauncherGUI extends JFrame
 
         add(panel);
         setVisible(true);
+
+        LoadSettings();
     }
 
     public void DownloadVersion(String version, String path)
@@ -118,7 +121,7 @@ public class LauncherGUI extends JFrame
                 System.setOut(stream);
                 System.setErr(stream);
 
-                Launcher.Launch(version, username, memoryAmount, false);
+                Launcher.Launch(version, username, memoryAmount, false, customJavaExePath);
             } catch (Exception e)
             {
                 e.printStackTrace(pw);
@@ -134,7 +137,14 @@ public class LauncherGUI extends JFrame
         try
         {
             memoryAmount = Integer.parseInt(amount);
+            SaveSettings();
         } catch (NumberFormatException ignored) { }
+    }
+
+    public void SetJavaExePath(String path)
+    {
+        customJavaExePath = path;
+        SaveSettings();
     }
 
     public void SaveLog()
@@ -169,6 +179,34 @@ public class LauncherGUI extends JFrame
     public static void ShowError(String errorMessage)
     {
         JOptionPane.showMessageDialog(null, errorMessage, "An error occurred!", JOptionPane.ERROR_MESSAGE);
+    }
+
+    public void SaveSettings()
+    {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Config config = new Config(memoryAmount, customJavaExePath);
+        try
+        {
+            new File(settingsFilePath).createNewFile();
+            FileWriter fw = new FileWriter(settingsFilePath);
+            gson.toJson(config, fw);
+            fw.close();
+            log.append("Saved config!\n");
+        } catch (IOException e) { e.printStackTrace(pw); ShowError(sw.toString()); }
+    }
+
+    public void LoadSettings()
+    {
+        Gson gson = new Gson();
+        try
+        {
+            FileReader fr = new FileReader(settingsFilePath);
+            Config settings = gson.fromJson(fr, Config.class);
+            fr.close();
+            memoryAmount = settings.memoryAmount;
+            customJavaExePath = settings.customJavaExePath;
+            log.append("Loaded config!\n");
+        } catch (IOException e) { log.append("Config not found!\n"); }
     }
 }
 

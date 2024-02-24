@@ -21,13 +21,16 @@ public class Launcher
     public static final String RUNTIME_PATH = "runtime" + File.separator;
     public static void main(String[] args)
     {
+        final String customJavaOption = "--java";
         final String memoryOption = "--memory";
         final String dryRunOption = "--dry-run";
         final String helpMenu = "Usage: Launcher [options] [version] [username]\n" +
                                 "Options:\n  " +
+                                customJavaOption + " [java.exe]: set a custom Java executable\n  " +
                                 memoryOption + " [number of MBs]: set the game max memory\n  " +
                                 dryRunOption + ": output only the launch command";
-        int memoryAmount = 2048;
+        String customJavaExePath = "";
+        int memoryAmount = 1024;
         boolean isDrRun = false;
         String version = null, username = null;
         if(args.length < 2)
@@ -44,7 +47,8 @@ public class Launcher
                 switch(arg)
                 {
                     case "--help": System.out.println(helpMenu); System.exit(0);
-                    case memoryOption: memoryAmount = Integer.parseInt(args[1]); i++; break;
+                    case customJavaOption: customJavaExePath = args[++i]; break;
+                    case memoryOption: memoryAmount = Integer.parseInt(args[++i]); break;
                     case dryRunOption: isDrRun = true; break;
                     default: System.out.println("Invalid flag. Exiting."); System.exit(-1);
                 }
@@ -58,10 +62,10 @@ public class Launcher
             }
         }
 
-        Launch(version, username, memoryAmount, isDrRun);
+        Launch(version, username, memoryAmount, isDrRun, customJavaExePath);
     }
 
-    public static void Launch(String version, String username, int memoryAmountMB, boolean isDryRun)
+    public static void Launch(String version, String username, int memoryAmountMB, boolean isDryRun, String customJavaExe)
     {
         JsonObject manifest = ManifestParser.GetJsonObjectFromFile(VERSIONS_DIR + version + File.separator + version + ".json");
         JsonObject assetsManifest = ManifestParser.GetLocalAssetIndexFromVersion(manifest);
@@ -80,8 +84,10 @@ public class Launcher
         }
 
         List<String> cmd = new ArrayList<>();
-        //cmd.add("java");
-        cmd.add(ManifestParser.GetRuntimePathFromVersion(manifest).getAbsolutePath());
+        if(Objects.equals(customJavaExe, ""))
+        {
+            cmd.add(ManifestParser.GetRuntimePathFromVersion(manifest).getAbsolutePath());
+        } else { cmd.add(customJavaExe); }
         if(Objects.equals(System.getProperty("os.name"), "Windows 11"))
         {
             cmd.add("\"-Dos.name=Windows 10\"");
