@@ -70,7 +70,8 @@ public class Downloader
         if(path.contains(".json"))
         {
             versionManifest = ManifestParser.GetJsonObjectFromFile(path);
-            assetsManifest = ManifestParser.GetJsonObjectFromFile(Launcher.ASSETS_INDEXES_DIR + ManifestParser.GetAssetIndexVersionFromVersion(versionManifest) + ".json");
+            //assetsManifest = ManifestParser.GetJsonObjectFromFile(Launcher.ASSETS_INDEXES_DIR + ManifestParser.GetAssetIndexVersionFromVersion(versionManifest) + ".json");
+            assetsManifest = ManifestParser.GetLocalAssetIndexFromVersion(versionManifest);
         } else
         {
             ManifestWrapper mw = DownloadManifests(path);
@@ -95,7 +96,7 @@ public class Downloader
         }
         if(assets)
         {
-            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir + Launcher.ASSETS_DIR);
+            DownloadAssetsFromAssetIndex(assetsManifest, downloadDir);
         }
     }
 
@@ -234,19 +235,16 @@ public class Downloader
 
     public static void DownloadAssetsFromAssetIndex(JsonObject assetManifest, String destinationPath)
     {
-        boolean mapToResources = false;
-        try
-        {
-            mapToResources = assetManifest.get("map_to_resources").getAsBoolean();
-        } catch (NullPointerException e) { }
-        Pair<String, String>[] assets = CompareAssets(ManifestParser.GetAssetsFromAssetIndex(assetManifest), destinationPath, mapToResources);
+        boolean[] flags = ManifestParser.GetSpecialAssetsFlags(assetManifest);
+        destinationPath = ManifestParser.GetAssetsDirFromAssetIndex(assetManifest, destinationPath);
+        Pair<String, String>[] assets = CompareAssets(ManifestParser.GetAssetsFromAssetIndex(assetManifest), destinationPath, flags[0], flags[1]);
         System.out.println("Need to get " + assets.length + " assets");
 
         for(int i = 0; i < assets.length; i++)
         {
             Pair<String, String> asset = assets[i];
             String url = "https://resources.download.minecraft.net/" + asset.getValue().substring(0, 2) + "/" + asset.getValue();
-            String dest = mapToResources ? Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR + asset.getKey() : destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+            String dest = destinationPath + ManifestParser.GetAssetRelativePathFromAssetPair(asset, flags[0], flags[1]);
             System.out.println("Downloading (" + (i+1) + "/" + assets.length + ")" + ": " + url);
             int response;
             if((response = DownloadURL(url, dest)) == 200)
@@ -256,13 +254,13 @@ public class Downloader
         }
     }
 
-    public static Pair<String, String>[] CompareAssets(Pair<String, String>[] assets, String destinationPath, boolean mapToResources)
+    public static Pair<String, String>[] CompareAssets(Pair<String, String>[] assets, String destinationPath, boolean isMapToResources, boolean isVirtual)
     {
         List<Pair<String, String>> missingAssets = new ArrayList<>();
         System.out.println("Comparing assets...");
         for(Pair<String, String> asset : assets)
         {
-            String dest = mapToResources ? Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR + asset.getKey() : destinationPath + "objects" + File.separator + asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+            String dest = destinationPath + ManifestParser.GetAssetRelativePathFromAssetPair(asset, isMapToResources, isVirtual);
             if(!new File(dest).exists()) { missingAssets.add(asset); }
         }
 
@@ -321,15 +319,9 @@ public class Downloader
         {
             os = "linux";
         } else if(os.contains("mac")) { os = "mac"; }
-
-        int version = 8;
-        String path = "jre-legacy";
-        try
-        {
-            Pair<String, Integer> runtimeData = ManifestParser.GetJavaRuntimeFromVersion(manifest);
-            path = runtimeData.getKey();
-            version = runtimeData.getValue();
-        } catch (Exception e) { e.printStackTrace(); return; }
+        Pair<String, Integer> runtimeData = ManifestParser.GetJavaRuntimeFromVersion(manifest);
+        String path = runtimeData.getKey();
+        int version = runtimeData.getValue();
         File runtime = new File(Launcher.RUNTIME_PATH);
         runtime.mkdirs();
         if(ManifestParser.GetRuntimePathFromVersion(manifest).exists())

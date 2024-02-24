@@ -124,6 +124,50 @@ public class ManifestParser
         return GetJsonObjectFromURL(manifest.getAsJsonObject("assetIndex").get("url").getAsString());
     }
 
+    public static JsonObject GetLocalAssetIndexFromVersion(JsonObject manifest)
+    {
+        return ManifestParser.GetJsonObjectFromFile(Launcher.ASSETS_INDEXES_DIR + ManifestParser.GetAssetIndexVersionFromVersion(manifest) + ".json");
+    }
+
+    /**
+     *
+     * @param assetManifest The version's asset manifest
+     * @return              [isMapToResources, isVirtual]
+     */
+    public static boolean[] GetSpecialAssetsFlags(JsonObject assetManifest)
+    {
+        boolean mapToResources = false;
+        boolean virtual = false;
+        try
+        {
+            mapToResources = assetManifest.get("map_to_resources").getAsBoolean();
+        } catch (NullPointerException e) { }
+        try
+        {
+            virtual = assetManifest.get("virtual").getAsBoolean();
+        } catch (NullPointerException e) { }
+        return new boolean[] {mapToResources, virtual};
+    }
+
+    public static String GetAssetsDirFromAssetIndex(JsonObject assetManifest, String destinationPath)
+    {
+        boolean mapToResources = GetSpecialAssetsFlags(assetManifest)[0], virtual = GetSpecialAssetsFlags(assetManifest)[1];
+        destinationPath += Launcher.ASSETS_DIR;
+        if(mapToResources)
+        {
+            destinationPath = Launcher.DEFAULT_MC_PATH + Launcher.RESOURCES_DIR;
+        } else if(virtual)
+        {
+            destinationPath += "virtual" + File.separator + "legacy" + File.separator;
+        } else { destinationPath += "objects" + File.separator; }
+        return destinationPath;
+    }
+
+    public static String GetAssetRelativePathFromAssetPair(Pair<String, String> asset, boolean isMapToResources, boolean isVirtual)
+    {
+        return isMapToResources || isVirtual ? asset.getKey() : asset.getValue().substring(0, 2) + File.separator + asset.getValue();
+    }
+
     /**
      *
      * @param manifest  The version's manifest
@@ -131,8 +175,16 @@ public class ManifestParser
      */
     public static Pair<String, Integer> GetJavaRuntimeFromVersion(JsonObject manifest)
     {
-        JsonObject j = manifest.getAsJsonObject("javaVersion");
-        return new Pair<>(j.get("component").getAsString(), j.get("majorVersion").getAsInt());
+        try
+        {
+            JsonObject j = manifest.getAsJsonObject("javaVersion");
+            return new Pair<>(j.get("component").getAsString(), j.get("majorVersion").getAsInt());
+        } catch (Exception e)
+        {
+            System.out.println("Couldn't parse Java version from manifest, assuming Java 8. Stack trace:");
+            e.printStackTrace();
+            return new Pair<>("jre-legacy", 8);
+        }
     }
 
     public static File GetRuntimePathFromVersion(JsonObject manifest)

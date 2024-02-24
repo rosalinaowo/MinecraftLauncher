@@ -18,6 +18,7 @@ public class OptionsWindow extends JFrame
         setTitle("Options");
         setSize(375, 100);
         setResizable(false);
+        setIconImage(new ImageIcon(getClass().getResource("/resources/cog.png")).getImage());
 
         panel.setLayout(new GridBagLayout());
         GridBagConstraints constraints = new GridBagConstraints();

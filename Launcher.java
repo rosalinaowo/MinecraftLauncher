@@ -64,6 +64,7 @@ public class Launcher
     public static void Launch(String version, String username, int memoryAmountMB, boolean isDryRun)
     {
         JsonObject manifest = ManifestParser.GetJsonObjectFromFile(VERSIONS_DIR + version + File.separator + version + ".json");
+        JsonObject assetsManifest = ManifestParser.GetLocalAssetIndexFromVersion(manifest);
         String nativesPath = VERSIONS_DIR + version + File.separator + "natives";
         String clientJar = VERSIONS_DIR + version + File.separator + "client.jar";
         String assetIndex = manifest.getAsJsonObject("assetIndex").get("id").getAsString();
@@ -105,13 +106,10 @@ public class Launcher
         {
             cmd.add("\"" + DEFAULT_MC_PATH + "\""); // we need to use the default .minecraft path for older versions
         } else { cmd.add("\"" + System.getProperty("user.dir") + "\""); }
-        cmd.add("--assetsDir");
-        if(pre16)
+        cmd.add("--assetsDir \"" + ManifestParser.GetAssetsDirFromAssetIndex(assetsManifest, "").replaceAll("objects" + Downloader.separator, "") + "\"");
+
+        if(!pre16)
         {
-            cmd.add("\"" + DEFAULT_MC_PATH + RESOURCES_DIR + "\"");
-        } else
-        {
-            cmd.add("\"" + ASSETS_DIR + "\"");
             cmd.add("--assetIndex " + assetIndex);
             cmd.add("--accessToken 1234");
             cmd.add("--userProperties \"{}\"");
