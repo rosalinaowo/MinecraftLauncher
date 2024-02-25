@@ -77,7 +77,7 @@ public class LauncherGUI extends JFrame
         constraints.weightx = 1.0;
         constraints.anchor = GridBagConstraints.CENTER;
         btnLaunch = new JButton("Launch Minecraft");
-        btnLaunch.addActionListener(e -> LaunchMinecraft((String)cmbVersions.getSelectedItem(), txtUsername.getText()));
+        btnLaunch.addActionListener(e -> { SaveSettings(); LaunchMinecraft((String)cmbVersions.getSelectedItem(), txtUsername.getText()); });
         panel.add(btnLaunch, constraints);
 
         // Username input
@@ -137,14 +137,12 @@ public class LauncherGUI extends JFrame
         try
         {
             memoryAmount = Integer.parseInt(amount);
-            SaveSettings();
         } catch (NumberFormatException ignored) { }
     }
 
     public void SetJavaExePath(String path)
     {
         customJavaExePath = path;
-        SaveSettings();
     }
 
     public void SaveLog()
@@ -184,7 +182,7 @@ public class LauncherGUI extends JFrame
     public void SaveSettings()
     {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        Config config = new Config(memoryAmount, customJavaExePath);
+        Config config = new Config(memoryAmount, customJavaExePath, txtUsername.getText());
         try
         {
             new File(settingsFilePath).createNewFile();
@@ -205,6 +203,7 @@ public class LauncherGUI extends JFrame
             fr.close();
             memoryAmount = settings.memoryAmount;
             customJavaExePath = settings.customJavaExePath;
+            txtUsername.setText(settings.username);
             log.append("Loaded config!\n");
         } catch (IOException e) { log.append("Config not found!\n"); }
     }

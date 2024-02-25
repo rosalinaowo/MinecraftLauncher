@@ -70,7 +70,7 @@ public class Launcher
         JsonObject manifest = ManifestParser.GetJsonObjectFromFile(VERSIONS_DIR + version + File.separator + version + ".json");
         JsonObject assetsManifest = ManifestParser.GetLocalAssetIndexFromVersion(manifest);
         String nativesPath = VERSIONS_DIR + version + File.separator + "natives";
-        String clientJar = VERSIONS_DIR + version + File.separator + "client.jar";
+        String clientJar = VERSIONS_DIR + version + File.separator + version + ".jar";
         String assetIndex = manifest.getAsJsonObject("assetIndex").get("id").getAsString();
         String startingClass = manifest.get("mainClass").getAsString();
         boolean pre16 = assetIndex.equals("pre-1.6");

@@ -221,7 +221,13 @@ public class Downloader
     public static void DownloadClientJar(JsonObject manifest, String destinationPath)
     {
         String url = ManifestParser.GetClientJarURLFromVersion(manifest);
-        DownloadURLs(new String[] { url }, destinationPath);
+        String dest = (destinationPath + File.separator + manifest.get("id").getAsString() + ".jar").replaceAll(separator + "+", separator);
+        System.out.println("Downloading: " + url);
+        int response;
+        if((response = DownloadURL(url, dest)) == 200)
+        {
+            System.out.println("Saved to: " + dest);
+        } else { System.out.println("HTTP status code " + response); }
     }
 
     public static void DownloadServerJar(JsonObject manifest, String destinationPath)
