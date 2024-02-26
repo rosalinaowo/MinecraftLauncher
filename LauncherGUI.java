@@ -16,6 +16,7 @@ public class LauncherGUI extends JFrame
     private JButton btnLaunch;
     private JButton btnOptions;
     private OptionsWindow optionsWindow;
+    private JButton btnRefreshVersionList;
     static String settingsFilePath = "launcher.config.json";
     int memoryAmount = 1024;
     String customJavaExePath = "";
@@ -47,7 +48,7 @@ public class LauncherGUI extends JFrame
 
         // Log
         constraints.gridx = constraints.gridy = 0;
-        constraints.gridwidth = 4;
+        constraints.gridwidth = 5;
         constraints.fill = GridBagConstraints.BOTH;
         constraints.weightx = 1.0;
         constraints.weighty = 0.97;
@@ -67,13 +68,22 @@ public class LauncherGUI extends JFrame
         cmbVersions = new JComboBox(GetVersionList());
         panel.add(cmbVersions, constraints);
 
-        // Options button
+        // Refresh button
         constraints.gridx = 1;
+        ImageIcon refreshIcon = new ImageIcon(getClass().getResource("/resources/refresh.png"));
+        btnRefreshVersionList = new JButton(refreshIcon);
+        btnRefreshVersionList.addActionListener(e -> UpdateVersionList());
+        panel.add(btnRefreshVersionList, constraints);
+
+
+        // Options button
+        constraints.gridx = 2;
         btnOptions = new JButton("Options");
         btnOptions.addActionListener(e -> optionsWindow = new OptionsWindow(this));
         panel.add(btnOptions, constraints);
 
         // Play button
+        constraints.gridx = 3;
         constraints.weightx = 1.0;
         constraints.anchor = GridBagConstraints.CENTER;
         btnLaunch = new JButton("Launch Minecraft");
@@ -82,7 +92,7 @@ public class LauncherGUI extends JFrame
 
         // Username input
         constraints.anchor = GridBagConstraints.EAST;
-        constraints.gridx = 3;
+        constraints.gridx = 4;
         constraints.weightx = 0.01;
         txtUsername = new JTextArea("pino");
         panel.add(txtUsername, constraints);
@@ -158,7 +168,7 @@ public class LauncherGUI extends JFrame
         } catch (IOException e) { e.printStackTrace(pw); ShowError(sw.toString()); }
     }
 
-    private void UpdateVersionList()
+    public void UpdateVersionList()
     {
         cmbVersions.setModel(new DefaultComboBoxModel(GetVersionList()));
     }
