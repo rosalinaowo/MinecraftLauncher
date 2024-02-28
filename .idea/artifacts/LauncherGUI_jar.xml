@@ -7,6 +7,8 @@
       </element>
       <element id="module-output" name="Launcher" />
       <element id="extracted-dir" path="$PROJECT_DIR$/import/gson-2.10.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/import/commons-lang3-3.14.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/import/commons-text-1.11.0.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

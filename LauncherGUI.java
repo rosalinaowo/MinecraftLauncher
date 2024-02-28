@@ -79,7 +79,7 @@ public class LauncherGUI extends JFrame
         // Options button
         constraints.gridx = 2;
         btnOptions = new JButton("Options");
-        btnOptions.addActionListener(e -> optionsWindow = new OptionsWindow(this));
+        btnOptions.addActionListener(e -> optionsWindow = new OptionsWindow(this, getX() + getWidth() / 2, getY() + getHeight() / 2));
         panel.add(btnOptions, constraints);
 
         // Play button
@@ -98,9 +98,8 @@ public class LauncherGUI extends JFrame
         panel.add(txtUsername, constraints);
 
         add(panel);
-        setVisible(true);
-
         LoadSettings();
+        setVisible(true);
     }
 
     public void DownloadVersion(String version, String path)
@@ -192,7 +191,7 @@ public class LauncherGUI extends JFrame
     public void SaveSettings()
     {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        Config config = new Config(memoryAmount, customJavaExePath, txtUsername.getText());
+        Config config = new Config(memoryAmount, customJavaExePath, txtUsername.getText(), new int[] { getX(), getY() });
         try
         {
             new File(settingsFilePath).createNewFile();
@@ -214,6 +213,7 @@ public class LauncherGUI extends JFrame
             memoryAmount = settings.memoryAmount;
             customJavaExePath = settings.customJavaExePath;
             txtUsername.setText(settings.username);
+            setLocation(settings.pos[0], settings.pos[1]);
             log.append("Loaded config!\n");
         } catch (IOException e) { log.append("Config not found!\n"); }
     }

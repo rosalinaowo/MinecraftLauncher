@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import com.google.gson.*;
+import org.apache.commons.text.StringSubstitutor;
 
 public class ManifestParser
 {
@@ -308,5 +309,24 @@ public class ManifestParser
         }
 
         return assets.toArray(new Pair[0]);
+    }
+
+    public static String GetLaunchParams(JsonObject manifest, Map<String, String> values)
+    {
+        String params = "";
+        if(manifest.get("minecraftArguments") != null)
+        {
+            params = manifest.get("minecraftArguments").getAsString();
+        } else
+        {
+            JsonArray p = manifest.getAsJsonObject("arguments").getAsJsonArray("game");
+            for(JsonElement element : p)
+            {
+                if(element.isJsonPrimitive()) { params += element.getAsString() + " "; }
+            }
+        }
+
+        StringSubstitutor substitutor = new StringSubstitutor(values);
+        return substitutor.replace(params);
     }
 }

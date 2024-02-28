@@ -13,12 +13,13 @@ public class OptionsWindow extends JFrame
     JButton btnDownload;
     JButton btnSaveLog;
     JTextArea txtJava;
-    public OptionsWindow(LauncherGUI mainWindow)
+    public OptionsWindow(LauncherGUI mainWindow, int x, int y)
     {
         this.mainWindow = mainWindow;
         setTitle("Options");
-        setSize(375, 130);
+        setSize(400, 130);
         //setResizable(false);
+        setLocation(x - getWidth() / 2, y - getHeight() / 2);
         setIconImage(new ImageIcon(getClass().getResource("/resources/cog.png")).getImage());
 
         panel.setLayout(new GridBagLayout());
@@ -63,7 +64,6 @@ public class OptionsWindow extends JFrame
         panel.add(new Label("Downloader:"), constraints);
         // Versions list
         constraints.gridx = 1;
-        //cmbVersions = new JComboBox(ManifestParser.GetDownloadableVersions());
         cmbVersions = new JComboBox(new String[] { "Could not get manifest" });
         UpdateDownloadableVersionsList();
         panel.add(cmbVersions, constraints);

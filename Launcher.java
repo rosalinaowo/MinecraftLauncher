@@ -3,10 +3,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class Launcher 
 {
@@ -75,6 +73,22 @@ public class Launcher
         String startingClass = manifest.get("mainClass").getAsString();
         boolean pre16 = assetIndex.equals("pre-1.6");
         //String startingClass = !assetIndex.equals("pre-1.6") ? manifest.get("mainClass").getAsString() : "net.minecraft.client.Minecraft";
+        String assetsDir = "\"" + ManifestParser.GetAssetsDirFromAssetIndex(assetsManifest, "").replaceAll("objects" + Downloader.separator, "") + "\"";
+        Map<String, String> paramValues = new HashMap<String, String>() {{ // All parameters we could need
+            put("auth_player_name", username); // --username
+            put("version_name", version); // --version
+            put("game_directory", pre16 ? "\"" + DEFAULT_MC_PATH + "\"" : "\"" + System.getProperty("user.dir") + "\""); // --gameDir
+            put("assets_root", assetsDir);  // --assetsDir
+            put("game_assets", assetsDir); // --assetsDir for some classic versions
+            put("assets_index_name", assetIndex); // --assetIndex
+            put("auth_uuid", UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8)).toString().replaceAll("-", ""));
+            put("auth_access_token", "69420");
+            put("clientid", "\"\"");
+            put("auth_xuid", "\"\"");
+            put("user_properties", "{}");
+            put("user_type", "legacy");
+            put("version_type", manifest.get("type").getAsString());
+        }};
         // Populate list of needed libraries
         String libsPaths = "";
         for(Pair<String, String> lib : ManifestParser.GetLibsFromVersion(manifest, Downloader.GetOSName()))
@@ -101,25 +115,8 @@ public class Launcher
         // Garbage collector flags, provides better performance
         cmd.add("-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M");
         cmd.add(startingClass);
-        if(!pre16)
-        {
-            cmd.add("--version " + version);
-            cmd.add("--username");
-        }
-        cmd.add(username);
-        cmd.add("--gameDir");
-        if(pre16)
-        {
-            cmd.add("\"" + DEFAULT_MC_PATH + "\""); // we need to use the default .minecraft path for older versions
-        } else { cmd.add("\"" + System.getProperty("user.dir") + "\""); }
-        cmd.add("--assetsDir \"" + ManifestParser.GetAssetsDirFromAssetIndex(assetsManifest, "").replaceAll("objects" + Downloader.separator, "") + "\"");
+        cmd.add(ManifestParser.GetLaunchParams(manifest, paramValues));
 
-        if(!pre16)
-        {
-            cmd.add("--assetIndex " + assetIndex);
-            cmd.add("--accessToken 1234");
-            cmd.add("--userProperties \"{}\"");
-        }
         String cmdString = String.join(" ", cmd);
         cmd = Arrays.asList(cmdString.replaceAll(Downloader.separator, "/").split(" "));
 
