@@ -113,7 +113,7 @@ public class Launcher
         cmd.add("\"" + clientJar + ";" + libsPaths + "\"");
         cmd.add("-Xmx" + memoryAmountMB + "M");
         // Garbage collector flags, provides better performance
-        cmd.add("-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M");
+        cmd.add("-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M -Xss1M");
         cmd.add(startingClass);
         cmd.add(ManifestParser.GetLaunchParams(manifest, paramValues));
 

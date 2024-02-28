@@ -24,8 +24,8 @@ public class Downloader
                                 manifestsOnlyOption + ": download only the manifests\n  " +
                                 jarsOnlyOption + ": download only client and server jars\n  " +
                                 libsOnlyOption + ": download only the libraries\n  " +
-                                assetsOnlyOption + ": download only the assets\n  " +
-                                dryRunOption + ": test without downloading anything";
+                                assetsOnlyOption + ": download only the assets";// +
+                                //dryRunOption + ": test without downloading anything";
         String path = null, downloadDir = null;
         boolean[] flags = new boolean[4]; // jars, libs, assets, dry run
         Arrays.fill(flags, true); // assume we want to download everything
@@ -47,7 +47,7 @@ public class Downloader
                     case jarsOnlyOption: Arrays.fill(flags, false); flags[0] = true; break;
                     case libsOnlyOption: Arrays.fill(flags, false); flags[1] = true; break;
                     case assetsOnlyOption: Arrays.fill(flags, false); flags[2] = true; break;
-                    case dryRunOption: flags[3] = true;
+                    //case dryRunOption: flags[3] = true;
                     default: System.out.println("Invalid flag. Exiting."); System.exit(-1);
                 }
             }
