@@ -190,7 +190,8 @@ public class ManifestParser
 
     public static File GetRuntimePathFromVersion(JsonObject manifest)
     {
-        return new File(Launcher.RUNTIME_PATH + GetJavaRuntimeFromVersion(manifest).getKey() + File.separator + "bin" + File.separator + "java.exe");
+        String executable = System.getProperty("os.name").toLowerCase().contains("windows") ? "java.exe" : "java";
+        return new File(Launcher.RUNTIME_PATH + GetJavaRuntimeFromVersion(manifest).getKey() + File.separator + "bin" + File.separator + executable);
     }
 
     /**

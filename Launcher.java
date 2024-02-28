@@ -91,10 +91,11 @@ public class Launcher
         }};
         // Populate list of needed libraries
         String libsPaths = "";
+        String divider = System.getProperty("os.name").toLowerCase().contains("windows") ? ";" : ":";
         for(Pair<String, String> lib : ManifestParser.GetLibsFromVersion(manifest, Downloader.GetOSName()))
         {
-            String path = LIBRARIES_DIR + lib.getKey().replaceAll("/", "\\\\");
-            libsPaths += path + lib.getValue().split("/")[lib.getValue().split("/").length - 1] + ";";
+            String path = LIBRARIES_DIR + lib.getKey();
+            libsPaths += path + lib.getValue().split("/")[lib.getValue().split("/").length - 1] + divider;
         }
 
         List<String> cmd = new ArrayList<>();
@@ -104,13 +105,13 @@ public class Launcher
         } else { cmd.add(customJavaExe); }
         if(Objects.equals(System.getProperty("os.name"), "Windows 11"))
         {
-            cmd.add("\"-Dos.name=Windows 10\"");
+            cmd.add("-Dos.name=\"Windows 10\"");
             cmd.add("-Dos.version=10.0");
         }
-        cmd.add("\"-Djava.library.path=" + nativesPath + "\"");
-        cmd.add("\"-Dminecraft.client.jar=" + clientJar + "\"");
+        cmd.add("-Djava.library.path=\"" + nativesPath + "\"");
+        cmd.add("-Dminecraft.client.jar=\"" + clientJar + "\"");
         cmd.add("-cp");
-        cmd.add("\"" + clientJar + ";" + libsPaths + "\"");
+        cmd.add("\"" + clientJar + divider + libsPaths + "\"");
         cmd.add("-Xmx" + memoryAmountMB + "M");
         // Garbage collector flags, provides better performance
         cmd.add("-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M -Xss1M");

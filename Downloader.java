@@ -309,10 +309,34 @@ public class Downloader
         return extractedFiles.toArray(new String[0]);
     }
 
+    public static String[] ExtractTarGz(String archiveName, String destinationPath)
+    {
+        List<String> extractedFiles = new ArrayList<>();
+        List<String> cmd = new ArrayList<>();
+        cmd.add("tar");
+        cmd.add("xvf");
+        cmd.add(archiveName);
+        try
+        {
+            System.out.println("Extracting " + archiveName);
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(true);
+            pb.directory(new File(destinationPath));
+            Process tarProcess = pb.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(tarProcess.getInputStream()));
+            String line;
+            while((line = reader.readLine()) != null) { extractedFiles.add(line); }
+            int exitCode = tarProcess.waitFor();
+            System.out.println("Extracted " + archiveName + " to " + destinationPath);
+        } catch (IOException | InterruptedException e) { e.printStackTrace(); }
+        return extractedFiles.toArray(new String[0]);
+    }
+
     public static void DownloadJava(JsonObject manifest)
     {
         // API used: https://do-api.adoptopenjdk.net/q/swagger-ui/#/Binary/getBinary
         String arch = System.getProperty("os.arch"), os = System.getProperty("os.name").toLowerCase();
+        String archiveExt = "";
         switch(arch)
         {
             case "x86": case "i386": arch = "x86"; break;
@@ -321,9 +345,11 @@ public class Downloader
         if(os.contains("windows"))
         {
             os = "windows";
+            archiveExt = ".zip";
         } else if(os.contains("linux"))
         {
             os = "linux";
+            archiveExt = ".tar.gz";
         } else if(os.contains("mac")) { os = "mac"; }
         Pair<String, Integer> runtimeData = ManifestParser.GetJavaRuntimeFromVersion(manifest);
         String path = runtimeData.getKey();
@@ -335,14 +361,20 @@ public class Downloader
             System.out.println("Java " + version + " already installed");
             return;
         }
-        String dest = Launcher.RUNTIME_PATH + "jre" + version + os + arch + ".zip";
+        String dest = Launcher.RUNTIME_PATH + "jre" + version + os + arch + archiveExt;
         String url = "https://api.adoptopenjdk.net/v3/binary/latest/" + version + "/ga/" + os + "/" + arch + "/jre/hotspot/normal/adoptopenjdk";
         System.out.println("Trying to get JRE " + version + " for " + os + " " + arch);
         int response;
         if((response = DownloadURL(url, dest)) == 200)
         {
             System.out.println("Downloaded " + dest);
-            File extractedDir = new File(Launcher.RUNTIME_PATH + ExtractZipFile(dest, Launcher.RUNTIME_PATH)[0]);
+            String extractedDirPath = "";
+            switch(os)
+            {
+                case "windows": extractedDirPath = ExtractZipFile(dest, Launcher.RUNTIME_PATH)[0]; break;
+                case "linux": extractedDirPath = ExtractTarGz(dest.split("/")[1], Launcher.RUNTIME_PATH)[0]; break;
+            }
+            File extractedDir = new File(Launcher.RUNTIME_PATH + extractedDirPath);
             extractedDir.renameTo(new File(Launcher.RUNTIME_PATH + path));
             new File(dest).delete();
         } else { System.out.println("HTTP status code " + response); }
