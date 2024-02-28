@@ -1,6 +1,7 @@
 :: Define variables
 set buildDir=tmpBuild
-set javaBin=C:\Program Files (x86)\OpenLogic\jdk-8.0.402.06-hotspot\bin :: Put your Java bin path here
+:: Put your Java bin path here
+set javaBin=C:\Program Files (x86)\OpenLogic\jdk-8.0.402.06-hotspot\bin
 set classPath=import\gson-2.10.1.jar;import\commons-lang3-3.14.0.jar;import\commons-text-1.11.0.jar
 
 :: Clean build directory
