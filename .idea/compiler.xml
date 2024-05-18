@@ -10,6 +10,7 @@
       <directory url="file://$PROJECT_DIR$/.idea" includeSubdirectories="true" />
       <file url="file://$PROJECT_DIR$/build.sh" />
       <file url="file://$PROJECT_DIR$/README.md" />
+      <directory url="file://$PROJECT_DIR$/img" includeSubdirectories="true" />
     </excludeFromCompile>
   </component>
 </project>
